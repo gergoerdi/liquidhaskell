@@ -41,3 +41,6 @@ resolver: nightly-2024-05-14
 nix:
   packages: [cacert, git, hostname, nix, stack, z3]
   path: [nixpkgs=./nixpkgs.nix]
+
+compiler: ghc-git-398b43d1e879c804ecdc1ff394ab1e62c208ede5-default+assertions
+compiler-repository: /home/cactus/prog/haskell/ghc/ghc.master
