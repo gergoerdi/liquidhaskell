@@ -1,8 +1,8 @@
-flags:
-  liquidhaskell:
-    devel: true
-  tests:
-    stack: true
+# flags:
+#   liquidhaskell:
+#     devel: true
+#   tests:
+#     stack: true
 extra-package-dbs: []
 ghc-options:
   hscolour: -w
@@ -10,14 +10,15 @@ ghc-options:
   liquidhaskell: -j
 packages:
 - liquid-fixpoint
-- liquid-prelude
-- liquid-vector
-- liquid-parallel
+# - liquid-prelude
+# - liquid-vector
+# - liquid-parallel
 - liquidhaskell-boot
-- tests
-- tests/benchmarks/popl18/lib
-- benchmark-timings
-- .
+# - tests
+# - tests/benchmarks/popl18/lib
+# - benchmark-timings
+# - .
+
 extra-deps:
 - rest-rewrite-0.4.3
 - smtlib-backends-0.3@rev:2
