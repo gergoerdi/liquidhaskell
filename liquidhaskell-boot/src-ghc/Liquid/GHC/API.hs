@@ -577,7 +577,7 @@ import GHC.Types.Id                   as Ghc
     , isConLikeId
     , modifyIdInfo
     , mkExportedLocalId
-    , mkUserLocal
+    , mkUserLocalOrCoVar
     , realIdUnfolding
     , setIdInfo
     )

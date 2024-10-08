@@ -367,7 +367,7 @@ freshNormalVar γ t = do
   u     <- getUniqueM
   let i  = getKey u
   let sp = Sp.srcSpan (aeSrcSpan γ)
-  return (mkUserLocal (anfOcc i) u Ghc.ManyTy t sp)
+  return (mkUserLocalOrCoVar (anfOcc i) u Ghc.ManyTy t sp)
 
 anfOcc :: Int -> OccName
 anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix
