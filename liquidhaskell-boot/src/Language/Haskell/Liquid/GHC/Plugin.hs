@@ -213,18 +213,6 @@ lhDynFlags _ hscEnv =
            `gopt_set` Opt_KeepRawTokenStream
       }
 
-maybeInsertBreakPoints :: Config -> DynFlags -> DynFlags
-maybeInsertBreakPoints cfg dflags =
-    if insertCoreBreakPoints cfg then
-      -- Opt_InsertBreakpoints is used during desugaring to prevent the
-      -- simple optimizer from inlining local bindings to which we might want
-      -- to attach specifications.
-      --
-      -- https://gitlab.haskell.org/ghc/ghc/-/issues/24386
-      dflags `gopt_set` Opt_InsertBreakpoints
-    else
-      dflags
-
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
 --------------------------------------------------------------------------------
@@ -310,26 +298,25 @@ typecheckHook' cfg ms tcGblEnv specComments = do
 liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Either LiquidCheckException TcGblEnv)
 liquidCheckModule cfg0 ms tcg specs = do
   updTopEnv (hscUpdateFlags noWarnings) $ do
-    withPragmas cfg0 thisFile [s | Pragma s <- specs] $ \cfg -> do
+    withPragmas cfg0 thisFile pragmas $ \cfg -> do
+      pipelineData <- do
         env <- getTopEnv
-
-        pipelineData <- liftIO $ do
-            session <- Session <$> newIORef env
-            flip reflectGhc session $ mkPipelineData cfg ms tcg specs
-
-        liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
-        traverse (serialiseSpec thisModule tcg) liquidLib
+        session <- Session <$> liftIO (newIORef env)
+        liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
+      liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
+      traverse (serialiseSpec thisModule tcg) liquidLib
   where
     thisModule = ms_mod ms
     thisFile = LH.modSummaryHsFile ms
+    pragmas = [ s | Pragma s <- specs ]
 
     noWarnings dflags = dflags { warningFlags = mempty }
 
 updateModSummaryDynFlags :: (DynFlags -> DynFlags) -> ModSummary -> ModSummary
 updateModSummaryDynFlags f ms = ms { ms_hspp_opts = f (ms_hspp_opts ms) }
 
-mkPipelineData :: (GhcMonad m) => Config -> ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
-mkPipelineData cfg ms0 tcg0 specs = do
+mkPipelineData :: (GhcMonad m) => ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
+mkPipelineData ms0 tcg0 specs = do
     let tcg = addNoInlinePragmasToBinds tcg0
 
     unoptimisedGuts <- withSession $ \hsc_env ->
@@ -344,7 +331,7 @@ mkPipelineData cfg ms0 tcg0 specs = do
     let tcData = mkTcData (tcg_rn_imports tcg) resolvedNames availTyCons availVars
     return $ PipelineData unoptimisedGuts tcData specs
   where
-    ms = updateModSummaryDynFlags (maybeInsertBreakPoints cfg . unoptimiseDynFlags) ms0
+    ms = updateModSummaryDynFlags unoptimiseDynFlags ms0
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
