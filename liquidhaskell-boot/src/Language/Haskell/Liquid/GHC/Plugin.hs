@@ -296,26 +296,23 @@ typecheckHook' cfg ms tcGblEnv specComments = do
 
 liquidCheckModule :: Config -> ModSummary -> TcGblEnv -> [BPspec] -> TcM (Either LiquidCheckException TcGblEnv)
 liquidCheckModule cfg0 ms tcg specs = do
-  updTopEnv (hscUpdateFlags noWarnings) $ do
-    withPragmas cfg0 thisFile pragmas $ \cfg -> do
-      pipelineData <- do
-        env <- getTopEnv
-        session <- Session <$> liftIO (newIORef env)
-        liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
-      liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
-      traverse (serialiseSpec tcg) liquidLib
+  withPragmas cfg0 thisFile pragmas $ \cfg -> do
+    pipelineData <- do
+      env <- getTopEnv
+      session <- Session <$> liftIO (newIORef env)
+      liftIO $ flip reflectGhc session $ mkPipelineData ms tcg specs
+    liquidLib <- liquidHaskellCheckWithConfig cfg pipelineData ms
+    traverse (serialiseSpec tcg) liquidLib
   where
     thisFile = LH.modSummaryHsFile ms
     pragmas = [ s | Pragma s <- specs ]
-
-    noWarnings dflags = dflags { warningFlags = mempty }
 
 mkPipelineData :: (GhcMonad m) => ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
 mkPipelineData ms tcg0 specs = do
     let tcg = addNoInlinePragmasToBinds tcg0
 
     unoptimisedGuts <- withSession $ \hsc_env ->
-        let lcl_hsc_env = hscUpdateFlags desugarerDynFlags hsc_env in
+        let lcl_hsc_env = hscUpdateFlags (noWarnings . desugarerDynFlags) hsc_env in
         liftIO $ hscDesugar lcl_hsc_env ms tcg
 
     resolvedNames   <- LH.lookupTyThings tcg
@@ -325,6 +322,8 @@ mkPipelineData ms tcg0 specs = do
 
     let tcData = mkTcData (tcg_rn_imports tcg) resolvedNames availTyCons availVars
     return $ PipelineData unoptimisedGuts tcData specs
+  where
+    noWarnings dflags = dflags { warningFlags = mempty }
 
 serialiseSpec :: TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec tcGblEnv liquidLib = do
