@@ -312,15 +312,12 @@ liquidCheckModule cfg0 ms tcg specs = do
 
     noWarnings dflags = dflags { warningFlags = mempty }
 
-updateModSummaryDynFlags :: (DynFlags -> DynFlags) -> ModSummary -> ModSummary
-updateModSummaryDynFlags f ms = ms { ms_hspp_opts = f (ms_hspp_opts ms) }
-
 mkPipelineData :: (GhcMonad m) => ModSummary -> TcGblEnv -> [BPspec] -> m PipelineData
-mkPipelineData ms0 tcg0 specs = do
+mkPipelineData ms tcg0 specs = do
     let tcg = addNoInlinePragmasToBinds tcg0
 
     unoptimisedGuts <- withSession $ \hsc_env ->
-        let lcl_hsc_env = hscSetFlags (ms_hspp_opts ms) hsc_env in
+        let lcl_hsc_env = hscUpdateFlags unoptimiseDynFlags hsc_env in
         liftIO $ hscDesugar lcl_hsc_env ms tcg
 
     resolvedNames   <- LH.lookupTyThings tcg
@@ -330,8 +327,6 @@ mkPipelineData ms0 tcg0 specs = do
 
     let tcData = mkTcData (tcg_rn_imports tcg) resolvedNames availTyCons availVars
     return $ PipelineData unoptimisedGuts tcData specs
-  where
-    ms = updateModSummaryDynFlags unoptimiseDynFlags ms0
 
 serialiseSpec :: Module -> TcGblEnv -> LiquidLib -> TcM TcGblEnv
 serialiseSpec thisModule tcGblEnv liquidLib = do
